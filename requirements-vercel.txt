@@ -1,0 +1,11 @@
+# Dependencies for the Vercel deployment only (kept far below Vercel's
+# 500 MB function-size limit). TensorFlow/DeepFace/streamlit are intentionally
+# absent: recognition runs on OpenCV's YuNet+SFace ONNX models (see
+# opencv_embedder.py). The full stack stays in requirements.txt for local /
+# Render use.
+fastapi
+uvicorn
+python-multipart
+opencv-python-headless<5
+numpy
+Pillow

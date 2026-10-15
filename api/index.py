@@ -1,112 +1,25 @@
-from __future__ import annotations
+"""
+Vercel entry point - serves the full Face Attendance API (server.py).
 
-import os
+TensorFlow/DeepFace cannot be installed on Vercel (the function-size limit is
+500 MB; TensorFlow alone is ~1.4 GB), so the server runs with the OpenCV
+YuNet+SFace embedding backend (FACE_EMBEDDER_BACKEND=opencv) and stores its
+writable data under /tmp (see config.DATA_DIR). Everything else - auth,
+registration, verification, liveness, attendance, reports, dashboard - is the
+same server.py used locally and on Render.
 
-os.environ.setdefault("TF_CPP_MIN_LOG_LEVEL", "3")
-os.environ.setdefault("OMP_NUM_THREADS", "1")
+Note: on serverless the filesystem is ephemeral per instance, so enrolments
+and punches survive warm invocations but reset when Vercel recycles the
+instance. Use Render (render.yaml) for a durable production install.
+"""
 
-from typing import Any
+import config
+import store
+from server import app, _bootstrap  # noqa: F401  (app is the ASGI entry point)
 
-import cv2
-import numpy as np
-from fastapi import FastAPI, File, HTTPException, UploadFile
-
-app = FastAPI(title="Face Match API", version="1.0.0")
-
-MAX_IMAGE_BYTES = 10 * 1024 * 1024
-ANALYSIS_ACTIONS = ["age", "gender", "race", "emotion"]
-
-
-def _decode_image(data: bytes, filename: str) -> np.ndarray:
-    if not data:
-        raise HTTPException(status_code=400, detail=f"{filename} is empty.")
-    if len(data) > MAX_IMAGE_BYTES:
-        raise HTTPException(status_code=413, detail=f"{filename} exceeds the 10 MB limit.")
-
-    image = cv2.imdecode(np.frombuffer(data, dtype=np.uint8), cv2.IMREAD_COLOR)
-    if image is None:
-        raise HTTPException(status_code=400, detail=f"{filename} is not a supported image.")
-    return image
-
-
-def _json_safe(value: Any) -> Any:
-    if isinstance(value, dict):
-        return {str(key): _json_safe(item) for key, item in value.items()}
-    if isinstance(value, (list, tuple)):
-        return [_json_safe(item) for item in value]
-    if isinstance(value, np.ndarray):
-        return value.tolist()
-    if isinstance(value, np.generic):
-        return value.item()
-    return value
-
-
-def _as_face_list(value: Any) -> list[dict[str, Any]]:
-    if isinstance(value, dict):
-        return [value]
-    return value or []
-
-
-def _analyze_faces(image: np.ndarray) -> list[dict[str, Any]]:
-    from deepface import DeepFace
-
-    analysis = DeepFace.analyze(img_path=image, actions=ANALYSIS_ACTIONS)
-    faces = _as_face_list(analysis)
-    if not faces:
-        raise HTTPException(status_code=422, detail="No face was detected in the image.")
-    return _json_safe(faces)
-
-
-@app.get("/health")
-def health() -> dict[str, str]:
-    return {"status": "ok"}
-
-
-@app.post("/analyze")
-async def analyze_face(image: UploadFile = File(...)) -> dict[str, Any]:
-    decoded_image = _decode_image(await image.read(), image.filename or "Image")
-    try:
-        return {"face_details": _analyze_faces(decoded_image)}
-    except HTTPException:
-        raise
-    except ValueError as exc:
-        raise HTTPException(status_code=422, detail=str(exc)) from exc
-    except Exception as exc:
-        raise HTTPException(status_code=500, detail=f"Face analysis failed: {exc}") from exc
-
-
-@app.post("/verify")
-async def verify_faces(
-    reference: UploadFile = File(...),
-    candidate: UploadFile = File(...),
-) -> dict[str, Any]:
-    reference_image = _decode_image(await reference.read(), reference.filename or "Reference image")
-    candidate_image = _decode_image(await candidate.read(), candidate.filename or "Candidate image")
-
-    try:
-        from deepface import DeepFace
-
-        verification = DeepFace.verify(
-            img1_path=reference_image,
-            img2_path=candidate_image,
-        )
-        return {
-            "verified": bool(verification.get("verified", False)),
-            "verification": _json_safe(verification),
-        }
-    except HTTPException:
-        raise
-    except ValueError as exc:
-        raise HTTPException(status_code=422, detail=str(exc)) from exc
-    except Exception as exc:
-        raise HTTPException(status_code=500, detail=f"Face analysis failed: {exc}") from exc
-
-
-@app.options("/{path:path}")
-def options() -> dict[str, str]:
-    return {"status": "ok"}
-
-
-@app.get("/{path:path}")
-def root() -> dict[str, str]:
-    return {"status": "ok"}
+# Not every serverless ASGI runtime fires the lifespan "startup" event, so run
+# the (idempotent) bootstrap eagerly: create data folders, tables and the
+# bootstrap admin / kiosk device.
+config.ensure_dirs()
+store.init_db()
+_bootstrap()

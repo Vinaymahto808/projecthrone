@@ -33,15 +33,32 @@ os.environ.setdefault("TF_CPP_MIN_LOG_LEVEL", "2")
 # ---------------------------------------------------------------------------
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
+# ---------------------------------------------------------------------------
+# Deployment target / writable data directory
+# ---------------------------------------------------------------------------
+# Serverless platforms (Vercel) give every function a read-only filesystem
+# except /tmp, so all *data* (SQLite DB, enrolled face images, embeddings,
+# secret key, exported CSVs) lives under DATA_DIR. On a normal machine (and
+# on Render) DATA_DIR == BASE_DIR, i.e. everything stays next to the code.
+IS_SERVERLESS = os.environ.get("VERCEL") == "1"
+DATA_DIR = os.environ.get("FACE_DATA_DIR") or ("/tmp/carrier" if IS_SERVERLESS else BASE_DIR)
+
+# The data folder must exist before anything opens the SQLite DB or writes the
+# secret key (store.py initialises the DB at import time), so create it here.
+try:
+    os.makedirs(DATA_DIR, exist_ok=True)
+except OSError:  # pragma: no cover - best effort only
+    pass
+
 # Registered users: known_faces/<person_name>/<person_name>_01.jpg ...
-KNOWN_FACES_DIR = os.path.join(BASE_DIR, "known_faces")
+KNOWN_FACES_DIR = os.path.join(DATA_DIR, "known_faces")
 
 # Cached embeddings so we never recompute them on every verification.
-EMBEDDINGS_DIR = os.path.join(BASE_DIR, "embeddings")
+EMBEDDINGS_DIR = os.path.join(DATA_DIR, "embeddings")
 FACE_DB_PATH = os.path.join(EMBEDDINGS_DIR, "face_db.pkl")
 
 # Attendance log: columns Name, Date, Time
-ATTENDANCE_CSV = os.path.join(BASE_DIR, "attendance.csv")
+ATTENDANCE_CSV = os.path.join(DATA_DIR, "attendance.csv")
 
 # ---------------------------------------------------------------------------
 # Embedding model selection
@@ -71,6 +88,12 @@ CUSTOM_OBJECTS: dict = {}
 # DeepFace pretrained fallback. Options: "Facenet", "Facenet512", "VGG-Face",
 # "ArcFace", "SFace", "GhostFaceNet", "OpenFace", "DeepID", "Dlib".
 DEEPFACE_MODEL_NAME = "Facenet"
+
+# Face embedding backend: "auto" (DeepFace when installed, else OpenCV),
+# "deepface" (TensorFlow; needs the heavy requirements.txt) or "opencv"
+# (small YuNet+SFace ONNX models in models/; ~37 MB, no TensorFlow).
+# Vercel sets this to "opencv" because TensorFlow exceeds its 500 MB limit.
+EMBEDDER_BACKEND = os.environ.get("FACE_EMBEDDER_BACKEND", "auto").lower()
 
 # Face detector used for cropping/alignment before embedding.
 # "opencv" ships with OpenCV (no download, fast). Alternatives: "retinaface",
@@ -117,7 +140,7 @@ MIN_FACE_SIZE = 60
 # ---------------------------------------------------------------------------
 # Server (server.py) settings
 # ---------------------------------------------------------------------------
-SQLITE_PATH = os.path.join(BASE_DIR, "attendance.db")   # employees + events
+SQLITE_PATH = os.path.join(DATA_DIR, "attendance.db")   # employees + events
 SERVER_HOST = "0.0.0.0"                                  # listen on LAN
 SERVER_PORT = 8000
 MIN_REGISTER_IMAGES = 3        # uploads that must contain exactly one face
@@ -129,7 +152,7 @@ MAX_IMAGE_SIDE = 1280          # downscale larger uploads before detection
 # ---------------------------------------------------------------------------
 # Signing key for admin/kiosk tokens (JWT HS256, stdlib only). Generated on
 # first start and stored in SECRET_KEY_PATH; FACE_ATTENDANCE_SECRET overrides.
-SECRET_KEY_PATH = os.path.join(BASE_DIR, "attendance_secret.key")
+SECRET_KEY_PATH = os.path.join(DATA_DIR, "attendance_secret.key")
 TOKEN_TTL_SEC = 12 * 3600                     # tokens valid for 12 hours
 REQUIRE_AUTH = os.environ.get("FACE_REQUIRE_AUTH", "1") != "0"
 # Bootstrap admin created when the admins table is empty (change after login).
@@ -183,5 +206,6 @@ def get_threshold(model_id: str) -> float:
 
 def ensure_dirs() -> None:
     """Create the data folders if they do not exist yet."""
+    os.makedirs(DATA_DIR, exist_ok=True)
     os.makedirs(KNOWN_FACES_DIR, exist_ok=True)
     os.makedirs(EMBEDDINGS_DIR, exist_ok=True)

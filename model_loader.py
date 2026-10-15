@@ -214,14 +214,39 @@ class FaceEmbedder:
         return f"{self.model_id} ({kind}) | input {w}x{h} | embedding {self.embedding_size}-d"
 
 
-_EMBEDDER: FaceEmbedder | None = None
+_EMBEDDER: Any = None
 
 
-def get_embedder() -> FaceEmbedder:
+def _resolve_backend() -> str:
+    """Pick the embedding backend: "deepface" (TensorFlow) or "opencv" (ONNX).
+
+    config.EMBEDDER_BACKEND:
+      * "auto"     -> deepface when it is importable, otherwise OpenCV
+      * "deepface" -> always TensorFlow / DeepFace
+      * "opencv"   -> always the small OpenCV YuNet+SFace models
+    """
+    backend = config.EMBEDDER_BACKEND
+    if backend == "auto":
+        try:
+            import deepface  # noqa: F401
+
+            return "deepface"
+        except Exception:  # not installed, or TensorFlow broken
+            return "opencv"
+    return backend
+
+
+def get_embedder():
     """Return the process-wide embedder, loading the model on first use."""
     global _EMBEDDER
     if _EMBEDDER is None:
-        _EMBEDDER = FaceEmbedder()
+        if _resolve_backend() == "opencv":
+            from opencv_embedder import OpenCVEmbedder
+
+            print("🧠 Loading OpenCV embedder: YuNet detection + SFace recognition (TensorFlow-free)")
+            _EMBEDDER = OpenCVEmbedder()
+        else:
+            _EMBEDDER = FaceEmbedder()
         print(f"✅ Model ready: {_EMBEDDER.describe()}")
     return _EMBEDDER
 

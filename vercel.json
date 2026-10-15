@@ -1,19 +1,18 @@
 {
-  "builds": [
-    {
-      "src": "api/index.py",
-      "use": "@vercel/python"
+  "installCommand": "pip install -r requirements-vercel.txt",
+  "env": {
+    "FACE_EMBEDDER_BACKEND": "opencv",
+    "TF_CPP_MIN_LOG_LEVEL": "3"
+  },
+  "functions": {
+    "api/index.py": {
+      "maxDuration": 60
     }
-  ],
+  },
   "routes": [
     {
       "src": "/(.*)",
       "dest": "api/index.py"
     }
-  ],
-  "functions": {
-    "api/index.py": {
-      "maxDuration": 60
-    }
-  }
+  ]
 }

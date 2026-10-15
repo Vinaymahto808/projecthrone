@@ -96,6 +96,25 @@ Data: photos in `known_faces/<emp_code>/`, embeddings in `embeddings/face_db.pkl
 
 Security notes for a real deployment: put the API behind HTTPS (then remove `usesCleartextTraffic` from the Android manifest), rotate the bootstrap admin password and the `kiosk-1` device key, and keep `attendance.db` and `attendance_secret.key` off shared storage. Liveness is on by default now, so a printed photo no longer passes on its own.
 
+### Deploying
+
+**Render** (`render.yaml`) runs the full stack: `carrier-face-api` (`uvicorn api:app`) plus `carrier-face-ui` (Streamlit, pointed at the API through `FACE_API_URL`). Data lives on the service disk.
+
+**Vercel** deploys the API only, and needs a TensorFlow-free build: DeepFace + TensorFlow is ~1.4 GB and Vercel's function-size limit is 500 MB. The Vercel build therefore installs `requirements-vercel.txt` and sets `FACE_EMBEDDER_BACKEND=opencv`, which switches recognition to OpenCV's bundled DNN models (`models/face_detection_yunet_2023mar.onnx` for detection, `models/face_recognition_sface_2021dec.onnx` for 128-d embeddings, both Apache-2.0). `api/index.py` is the entry point; `.vercelignore` keeps the upload small and hides `uv.lock`/`pyproject.toml` so Vercel does not pull TensorFlow back in through `uv sync`.
+
+Serverless caveats on Vercel: the filesystem is read-only except `/tmp`, so `config.DATA_DIR` moves the database, enrolments, embeddings and secret key to `/tmp/carrier`; that data survives warm invocations but resets when the instance is recycled, and requests are capped at 60 s. Use Render (or the desktop tools) when attendance data must be durable.
+
+Environment variables:
+
+| Variable | Purpose |
+| --- | --- |
+| `FACE_EMBEDDER_BACKEND` | `auto` (default: DeepFace if installed, else OpenCV), `deepface`, or `opencv` |
+| `FACE_DATA_DIR` | Writable data directory (defaults to the project folder, or `/tmp/carrier` when `VERCEL=1`) |
+| `FACE_REQUIRE_AUTH`, `FACE_REQUIRE_LIVENESS` | `0` disables the corresponding check |
+| `FACE_ADMIN_USER`, `FACE_ADMIN_PASSWORD`, `FACE_KIOSK_NAME`, `FACE_KIOSK_KEY` | Bootstrap credentials |
+
+Both backends share the same cosine-similarity matching, so `config.get_threshold()` picks the right value per model (Facenet 0.60, SFace 0.41). A `face_db.pkl` built with one backend cannot be read by the other — run `python build_db.py` after switching.
+
 ## Offline face attendance (webcam, no API)
 
 A second, standalone tool in the same folder registers people from the webcam and marks attendance by face. It never calls `DeepFace.verify()`; it extracts embeddings with an embedding network and compares them with cosine similarity.

@@ -610,7 +610,7 @@ def attendance_day(date: str | None = None, claims: dict[str, Any] = Depends(req
 
 @app.get("/attendance/export.csv")
 def attendance_export(date: str | None = None, claims: dict[str, Any] = Depends(require_admin)) -> FileResponse:
-    path = os.path.join(config.BASE_DIR, "attendance_export.csv")
+    path = os.path.join(config.DATA_DIR, "attendance_export.csv")
     store.export_csv(path, date)
     return FileResponse(path, media_type="text/csv", filename=f"attendance_{date or 'today'}.csv")
 
@@ -671,7 +671,7 @@ def reports_monthly_csv(month: str = Query(...), claims: dict[str, Any] = Depend
         report = store.monthly_report(month)
     except ValueError as exc:
         raise HTTPException(400, str(exc)) from exc
-    path = os.path.join(config.BASE_DIR, f"report_{month}.csv")
+    path = os.path.join(config.DATA_DIR, f"report_{month}.csv")
     with open(path, "w", newline="", encoding="utf-8") as fh:
         w = csv.writer(fh)
         w.writerow(["emp_code", "name", "department", "present", "late", "absent",

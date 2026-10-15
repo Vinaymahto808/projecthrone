@@ -19,3 +19,6 @@ attendance_export.csv
 report_*.csv
 attendance_secret.key
 *.key
+
+.vercel
+.env*

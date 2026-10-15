@@ -1,0 +1,26 @@
+# Keep the Vercel upload + function bundle small.
+# Heavy / not-needed-on-serverless paths are excluded.
+.venv/
+__pycache__/
+.git*/
+.env*
+.vercel/
+
+# Desktop / native tooling - not part of the serverless API
+android_app/
+facei.ipynb
+run_server.ps1
+render.yaml
+
+# uv is not used on Vercel (installCommand installs requirements-vercel.txt);
+# shipping these would make Vercel try `uv sync` and pull TensorFlow back in.
+uv.lock
+pyproject.toml
+
+# Runtime data (already git-ignored; listed for clarity)
+known_faces/
+embeddings/
+*.db
+*.key
+attendance_export.csv
+report_*.csv
