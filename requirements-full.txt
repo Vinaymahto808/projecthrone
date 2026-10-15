@@ -1,0 +1,13 @@
+# Full stack: the API/desktop tools with DeepFace (TensorFlow) plus the
+# Streamlit UI. Use this locally and on Render.
+#
+# The Vercel deployment installs requirements.txt (serverless-light, no
+# TensorFlow) and runs recognition on the OpenCV YuNet+SFace ONNX models.
+deepface
+tf-keras
+fastapi
+opencv-python-headless<5
+python-multipart
+requests
+streamlit
+uvicorn[standard]

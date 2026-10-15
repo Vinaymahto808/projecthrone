@@ -11,7 +11,7 @@ Create and activate an environment, then install the dependencies:
 ```powershell
 py -3.13 -m venv .venv
 .\.venv\Scripts\Activate.ps1
-pip install -r requirements.txt
+pip install -r requirements-full.txt
 ```
 
 Start the API in one terminal:
@@ -100,7 +100,7 @@ Security notes for a real deployment: put the API behind HTTPS (then remove `use
 
 **Render** (`render.yaml`) runs the full stack: `carrier-face-api` (`uvicorn api:app`) plus `carrier-face-ui` (Streamlit, pointed at the API through `FACE_API_URL`). Data lives on the service disk.
 
-**Vercel** deploys the API only, and needs a TensorFlow-free build: DeepFace + TensorFlow is ~1.4 GB and Vercel's function-size limit is 500 MB. The Vercel build therefore installs `requirements-vercel.txt` and sets `FACE_EMBEDDER_BACKEND=opencv`, which switches recognition to OpenCV's bundled DNN models (`models/face_detection_yunet_2023mar.onnx` for detection, `models/face_recognition_sface_2021dec.onnx` for 128-d embeddings, both Apache-2.0). `api/index.py` is the entry point; `.vercelignore` keeps the upload small and hides `uv.lock`/`pyproject.toml` so Vercel does not pull TensorFlow back in through `uv sync`.
+**Vercel** deploys the API only, and needs a TensorFlow-free build: DeepFace + TensorFlow is ~1.4 GB and Vercel's function-size limit is 500 MB. The deployment therefore installs `requirements.txt` (the serverless-light set: FastAPI, OpenCV, NumPy, Pillow) and recognition switches to OpenCV's bundled DNN models (`models/face_detection_yunet_2023mar.onnx` for detection, `models/face_recognition_sface_2021dec.onnx` for 128-d embeddings, both Apache-2.0). `api/index.py` is the entry point; `.vercelignore` keeps the upload small and hides `uv.lock`/`pyproject.toml` so Vercel does not pull TensorFlow back in through `uv sync`. The heavy stack stays in `requirements-full.txt`.
 
 Serverless caveats on Vercel: the filesystem is read-only except `/tmp`, so `config.DATA_DIR` moves the database, enrolments, embeddings and secret key to `/tmp/carrier`; that data survives warm invocations but resets when the instance is recycled, and requests are capped at 60 s. Use Render (or the desktop tools) when attendance data must be durable.
 
@@ -135,16 +135,18 @@ carrier/
 └── attendance.csv
 ```
 
-Install. The webcam preview needs the GUI build of OpenCV, and the headless build from `requirements.txt` overwrites it when both are present, so remove headless locally:
+Install. The webcam preview needs the GUI build of OpenCV, and the headless build from `requirements-full.txt` overwrites it when both are present, so remove headless locally:
 
 ```powershell
 .\.venv\Scripts\Activate.ps1
-pip install -r requirements.txt
+pip install -r requirements-full.txt
 pip uninstall -y opencv-python-headless
 pip install "opencv-python<5"
 ```
 
 OpenCV 5 removed `cv2.CascadeClassifier`, which DeepFace's default "opencv" detector needs, so OpenCV must stay on the 4.x series (the deployed API keeps using headless 4.x from `requirements.txt`).
+
+`requirements.txt` is the light API set (no TensorFlow) because Vercel installs it; `requirements-full.txt` adds DeepFace, TensorFlow and Streamlit for local desktop/webcam work and the Render services.
 
 Run order:
 

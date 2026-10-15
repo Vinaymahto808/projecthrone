@@ -12,8 +12,8 @@ facei.ipynb
 run_server.ps1
 render.yaml
 
-# uv is not used on Vercel (installCommand installs requirements-vercel.txt);
-# shipping these would make Vercel try `uv sync` and pull TensorFlow back in.
+# uv is not used on Vercel (it installs the light requirements.txt); shipping
+# these would make Vercel try `uv sync` and pull TensorFlow back in.
 uv.lock
 pyproject.toml
 

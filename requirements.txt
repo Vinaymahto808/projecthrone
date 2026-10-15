@@ -1,8 +1,15 @@
-deepface
-tf-keras
+# Serverless / API dependencies (used by the Vercel deployment).
+#
+# Kept deliberately light: TensorFlow + DeepFace is ~1.4 GB installed, which
+# blows past Vercel's function-size limit. Recognition therefore uses OpenCV's
+# bundled DNN models (models/*.onnx, see opencv_embedder.py).
+#
+# For the full local / Render stack - DeepFace, TensorFlow and the Streamlit UI -
+# install requirements-full.txt instead:
+#     pip install -r requirements-full.txt
 fastapi
-opencv-python-headless<5
+uvicorn
 python-multipart
-requests
-streamlit
-uvicorn[standard]
+opencv-python-headless<5
+numpy
+Pillow
