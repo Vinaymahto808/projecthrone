@@ -8,3 +8,14 @@ wheels/
 
 # Virtual environments
 .venv
+
+# Face attendance data (personal images / embeddings / log)
+known_faces/
+embeddings/
+attendance.csv
+my_deepface_model.h5
+attendance.db
+attendance_export.csv
+report_*.csv
+attendance_secret.key
+*.key

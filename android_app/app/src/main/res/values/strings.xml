@@ -1,0 +1,94 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Face Attendance</string>
+    <string name="company_name">Acme Technologies Pvt. Ltd.</string>
+    <string name="kiosk_subtitle">Employee Attendance Kiosk</string>
+
+    <!-- Kiosk states -->
+    <string name="scan_prompt">Scan your face</string>
+    <string name="scan_hint">Stand in front of the camera to check in or out</string>
+    <string name="dept_unknown">Department not set</string>
+    <string name="face_ok">Face detected</string>
+    <string name="face_hold">Hold still…</string>
+    <string name="face_none">Position your face inside the circle</string>
+    <string name="face_many">Only one person at a time, please</string>
+    <string name="verifying">Verifying with server…</string>
+    <string name="verified_as">Verified: %1$s · score %2$.2f</string>
+    <string name="face_unknown_retry">Not recognised (%1$.2f) · keep looking at the camera · %2$d s</string>
+    <string name="face_no_record">Face matched \'%1$s\' but no employee record exists</string>
+    <string name="camera_denied">Camera permission is required for attendance</string>
+
+    <!-- Mismatch alert (after 40 s of unrecognised face) -->
+    <string name="mismatch_title">Face mismatch</string>
+    <string name="mismatch_message">Your face has not been recognised for %1$d seconds (best match %2$.2f).\n\nIf you are a registered employee, improve lighting and look straight at the camera. Otherwise ask an admin to register you, or log in with your employee code to view your history.</string>
+    <string name="register">Register</string>
+    <string name="dismiss">Dismiss</string>
+
+    <string name="check_in">Check In</string>
+    <string name="check_out">Check Out</string>
+    <string name="rescan">Scan again</string>
+    <string name="my_history">My history</string>
+    <string name="employee_login">Employee login</string>
+    <string name="register_employee">Register employee</string>
+    <string name="checked_in_msg">Checked in at %1$s</string>
+    <string name="checked_out_msg">Checked out at %1$s</string>
+    <string name="checked_in_late_msg">Checked in at %1$s · late by %2$d min</string>
+    <string name="status_idle">Waiting for a face…</string>
+    <string name="status_not_in">Not checked in today</string>
+    <string name="status_in_since">Checked in since %1$s</string>
+    <string name="status_done">Checked out at %1$s</string>
+
+    <string name="today_activity">Today\'s activity</string>
+    <string name="no_activity">No entries yet today</string>
+    <string name="footer">Face recognition runs on the attendance server · v3.0</string>
+
+    <!-- Server / admin -->
+    <string name="server_checking">Connecting to %1$s…</string>
+    <string name="server_ok">Server online · %1$d employees · model %2$s</string>
+    <string name="server_down">Server offline: %1$s (tap ⚙ to change)</string>
+    <string name="settings">Kiosk settings</string>
+    <string name="save">Save</string>
+    <string name="admin_required">Admin PIN required</string>
+    <string name="admin_pin">Admin PIN</string>
+    <string name="wrong_pin">Wrong PIN</string>
+    <string name="device_name">Device name (e.g. kiosk-1)</string>
+    <string name="device_key">Device key</string>
+    <string name="admin_sign_in">Admin sign-in</string>
+    <string name="admin_user">Admin username</string>
+    <string name="admin_password">Admin password</string>
+    <string name="sign_in">Sign in</string>
+
+    <!-- Registration -->
+    <string name="register_title">Register employee</string>
+    <string name="full_name">Full name</string>
+    <string name="employee_code">Employee code (e.g. EMP-1024)</string>
+    <string name="department">Department</string>
+    <string name="password">Password</string>
+    <string name="password_optional">Password for history login (optional, min 4)</string>
+    <string name="password_short">At least 4 characters</string>
+    <string name="required">Required</string>
+    <string name="capture_title">Capture 5 face photos</string>
+    <string name="capture_no_face">Photo %1$d/%2$d · no face in view</string>
+    <string name="capture_ready">Photo %1$d/%2$d · face detected, tap Capture</string>
+    <string name="capture_done">%1$d photos captured · ready to submit</string>
+    <string name="capture_n">Capture %1$d/%2$d</string>
+    <string name="retake">Retake</string>
+    <string name="submit_registration">Submit registration</string>
+    <string name="registered_ok">%1$s registered with %2$d photos</string>
+    <string name="register_hint">Vary the head angle slightly between photos. Good lighting on the face improves recognition. Photos are processed on the attendance server only.</string>
+
+    <!-- Login / history -->
+    <string name="login_title">Employee login</string>
+    <string name="login">Login</string>
+    <string name="login_failed">Login failed</string>
+    <string name="login_hint">Use the employee code and the password set at registration. Ask an admin if you have no password yet.</string>
+    <string name="history_title">Attendance history</string>
+    <string name="days_present">Days present</string>
+    <string name="total_hours">Total hours</string>
+    <string name="period">Last %1$d days</string>
+    <string name="no_history">No attendance records in this period</string>
+    <string name="day_in_out">In %1$s  ·  Out %2$s</string>
+    <string name="hours_fmt">%1$.1f h</string>
+    <string name="present">Present</string>
+    <string name="incomplete">Open</string>
+</resources>

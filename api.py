@@ -41,9 +41,32 @@ def _as_face_list(value: Any) -> list[dict[str, Any]]:
     return value or []
 
 
+def _analyze_faces(image: np.ndarray) -> list[dict[str, Any]]:
+    from deepface import DeepFace
+
+    analysis = DeepFace.analyze(img_path=image, actions=ANALYSIS_ACTIONS)
+    faces = _as_face_list(analysis)
+    if not faces:
+        raise HTTPException(status_code=422, detail="No face was detected in the image.")
+    return _json_safe(faces)
+
+
 @app.get("/health")
 def health() -> dict[str, str]:
     return {"status": "ok"}
+
+
+@app.post("/analyze")
+async def analyze_face(image: UploadFile = File(...)) -> dict[str, Any]:
+    decoded_image = _decode_image(await image.read(), image.filename or "Image")
+    try:
+        return {"face_details": _analyze_faces(decoded_image)}
+    except HTTPException:
+        raise
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=f"Face analysis failed: {exc}") from exc
 
 
 @app.post("/verify")
@@ -61,27 +84,13 @@ async def verify_faces(
             img1_path=reference_image,
             img2_path=candidate_image,
         )
-        result: dict[str, Any] = {
+        return {
             "verified": bool(verification.get("verified", False)),
             "verification": _json_safe(verification),
-            "face_details": None,
         }
-
-        if result["verified"]:
-            reference_details = DeepFace.analyze(
-                img_path=reference_image,
-                actions=ANALYSIS_ACTIONS,
-            )
-            candidate_details = DeepFace.analyze(
-                img_path=candidate_image,
-                actions=ANALYSIS_ACTIONS,
-            )
-            result["face_details"] = {
-                "reference": _json_safe(_as_face_list(reference_details)),
-                "candidate": _json_safe(_as_face_list(candidate_details)),
-            }
-        return result
     except HTTPException:
         raise
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
     except Exception as exc:
         raise HTTPException(status_code=500, detail=f"Face analysis failed: {exc}") from exc

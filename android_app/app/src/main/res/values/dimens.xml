@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Phone defaults; overridden in values-sw600dp for tablets -->
+    <dimen name="page_padding">16dp</dimen>
+    <dimen name="card_radius">16dp</dimen>
+    <dimen name="camera_max_size">300dp</dimen>
+    <dimen name="content_max_width">600dp</dimen>
+    <dimen name="avatar_size">52dp</dimen>
+    <dimen name="clock_text">28sp</dimen>
+    <dimen name="button_height">54dp</dimen>
+</resources>

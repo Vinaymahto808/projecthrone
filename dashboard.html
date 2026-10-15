@@ -1,0 +1,356 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Attendance Dashboard</title>
+<style>
+  :root { --bg:#f4f6fa; --card:#fff; --text:#0f172a; --muted:#64748b; --line:#e2e8f0; --brand:#1a56db; --ok:#16a34a; --bad:#dc2626; --warn:#d97706; }
+  * { box-sizing:border-box; }
+  body { margin:0; font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif; background:var(--bg); color:var(--text); }
+  header { background:linear-gradient(90deg,#1e3a8a,#1a56db); color:#fff; padding:16px; display:flex; gap:12px; align-items:center; flex-wrap:wrap; }
+  header h1 { margin:0; font-size:18px; flex:1; }
+  header p { margin:0; opacity:.85; font-size:12px; width:100%; }
+  main { max-width:1100px; margin:0 auto; padding:16px; display:grid; gap:16px; grid-template-columns:repeat(auto-fit,minmax(320px,1fr)); }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:16px; padding:16px; }
+  .card h2 { margin:0 0 12px; font-size:15px; }
+  .kpis { display:grid; grid-template-columns:repeat(4,1fr); gap:12px; grid-column:1/-1; }
+  .kpi { background:var(--card); border:1px solid var(--line); border-radius:16px; padding:14px; }
+  .kpi .v { font-size:26px; font-weight:700; } .kpi .l { color:var(--muted); font-size:12px; }
+  table { width:100%; border-collapse:collapse; font-size:13px; }
+  th,td { text-align:left; padding:7px 6px; border-bottom:1px solid var(--line); white-space:nowrap; }
+  th { color:var(--muted); font-weight:600; font-size:11px; text-transform:uppercase; letter-spacing:.03em; }
+  .pill { display:inline-block; padding:2px 9px; border-radius:999px; font-size:11px; font-weight:600; }
+  .in { background:#dcfce7; color:var(--ok); } .out { background:#dbeafe; color:var(--brand); }
+  .LATE { background:#fef3c7; color:var(--warn); } .PRESENT { background:#dcfce7; color:var(--ok); }
+  .ABSENT { background:#fee2e2; color:var(--bad); } .WEEKOFF { background:#e2e8f0; color:var(--muted); }
+  .HOLIDAY { background:#ede9fe; color:#7c3aed; } .OPEN { background:#cffafe; color:#0e7490; }
+  .muted { color:var(--muted); font-size:13px; }
+  .row { display:flex; gap:8px; align-items:center; flex-wrap:wrap; margin-bottom:10px; }
+  input,select,button { padding:8px 10px; border:1px solid var(--line); border-radius:10px; font:inherit; }
+  button { background:var(--brand); color:#fff; border:none; cursor:pointer; }
+  button.ghost { background:#eef2ff; color:var(--brand); }
+  button.danger { background:#fee2e2; color:var(--bad); }
+  .scroll { overflow:auto; max-height:420px; }
+  .full { grid-column:1/-1; }
+  .hidden { display:none !important; }
+  #loginCard { max-width:380px; margin:60px auto; grid-column:1/-1; }
+  label { font-size:12px; color:var(--muted); display:block; margin:8px 0 4px; }
+  pre.key { background:#0f172a; color:#a7f3d0; padding:10px; border-radius:10px; overflow:auto; font-size:12px; }
+  @media (max-width:600px){ .kpis{grid-template-columns:1fr 1fr;} }
+</style>
+</head>
+<body>
+<header>
+  <h1>Face Attendance · Dashboard</h1>
+  <span id="who" class="muted" style="color:#dbeafe"></span>
+  <button id="loginBtn" class="ghost" onclick="showLogin()">Sign in</button>
+  <button id="outBtn" class="ghost hidden" onclick="logout()">Sign out</button>
+  <p id="model">Loading…</p>
+</header>
+
+<main>
+  <!-- Login -->
+  <div class="card hidden" id="loginCard">
+    <h2>Admin sign in</h2>
+    <label for="u">Username</label>
+    <input id="u" autocomplete="username" style="width:100%">
+    <label for="p">Password</label>
+    <input id="p" type="password" autocomplete="current-password" style="width:100%">
+    <div class="row" style="margin-top:12px">
+      <button onclick="login()">Sign in</button>
+      <span class="muted" id="loginErr"></span>
+    </div>
+  </div>
+
+  <!-- App (only when signed in) -->
+  <div class="kpis hidden" id="kpis" style="display:grid">
+    <div class="kpi"><div class="v" id="kPresent">–</div><div class="l">Present today</div></div>
+    <div class="kpi"><div class="v" id="kLate">–</div><div class="l">Late today</div></div>
+    <div class="kpi"><div class="v" id="kTotal">–</div><div class="l">Employees</div></div>
+    <div class="kpi"><div class="v" id="kEvents">–</div><div class="l">Events today</div></div>
+  </div>
+
+  <div class="card full hidden" id="dayCard">
+    <div class="row">
+      <h2 style="margin:0;flex:1">Day summary</h2>
+      <input type="date" id="date">
+      <button onclick="loadDay()">Refresh</button>
+      <button class="ghost" onclick="exportCsv()">Export events CSV</button>
+    </div>
+    <div class="scroll">
+      <table><thead><tr><th>Name</th><th>Code</th><th>Shift</th><th>In</th><th>Out</th><th>Hours</th><th>Late</th><th>Early</th><th>OT</th><th>Status</th></tr></thead>
+      <tbody id="grade"><tr><td colspan="10" class="muted">Loading…</td></tr></tbody></table>
+    </div>
+  </div>
+
+  <div class="card full hidden" id="reportCard">
+    <div class="row">
+      <h2 style="margin:0;flex:1">Monthly report</h2>
+      <input type="month" id="month">
+      <button onclick="loadReport()">Run</button>
+      <button class="ghost" onclick="exportReport()">Export CSV</button>
+    </div>
+    <div class="scroll">
+      <table><thead><tr><th>Name</th><th>Code</th><th>Dept</th><th>Present</th><th>Late</th><th>Absent</th><th>WO</th><th>Hol</th><th>Hours</th><th>OT</th></tr></thead>
+      <tbody id="report"><tr><td colspan="10" class="muted">Pick a month and press Run</td></tr></tbody></table>
+    </div>
+  </div>
+
+  <div class="card full hidden" id="eventsCard">
+    <div class="row"><h2 style="margin:0;flex:1">Raw events</h2><button class="ghost" onclick="loadDay()">Refresh</button></div>
+    <div class="scroll">
+      <table><thead><tr><th>Time</th><th>Employee</th><th>Code</th><th>Event</th><th>Score</th><th>Source</th><th></th></tr></thead>
+      <tbody id="events"></tbody></table>
+    </div>
+  </div>
+
+  <div class="card full hidden" id="empCard">
+    <div class="row"><h2 style="margin:0;flex:1">Employees &amp; shifts</h2></div>
+    <div class="scroll">
+      <table><thead><tr><th>Name</th><th>Code</th><th>Dept</th><th>Photos</th><th>Shift</th><th>Week-off</th><th></th></tr></thead>
+      <tbody id="emps"></tbody></table>
+    </div>
+  </div>
+
+  <div class="card hidden" id="shiftsCard">
+    <h2>Shifts</h2>
+    <div class="row">
+      <input id="shName" placeholder="Name" size="10">
+      <input id="shStart" placeholder="09:00" size="6">
+      <input id="shEnd" placeholder="18:00" size="6">
+      <input id="shGrace" type="number" placeholder="Grace m" size="5" style="width:80px">
+      <input id="shHours" type="number" step="0.5" placeholder="Hours" size="5" style="width:80px">
+      <button onclick="addShift()">Add</button>
+    </div>
+    <table><thead><tr><th>Name</th><th>Start</th><th>End</th><th>Grace</th><th>Hours</th><th></th></tr></thead><tbody id="shifts"></tbody></table>
+  </div>
+
+  <div class="card hidden" id="holidaysCard">
+    <h2>Holidays</h2>
+    <div class="row">
+      <input type="date" id="holDate">
+      <input id="holName" placeholder="Name" size="12">
+      <button onclick="addHoliday()">Add</button>
+    </div>
+    <table><thead><tr><th>Date</th><th>Name</th><th></th></tr></thead><tbody id="holidays"></tbody></table>
+  </div>
+
+  <div class="card full hidden" id="devicesCard">
+    <div class="row">
+      <h2 style="margin:0;flex:1">Kiosk devices</h2>
+      <input id="devName" placeholder="kiosk-2" size="12">
+      <button onclick="addDevice()">Create key</button>
+      <button class="ghost" onclick="loadDevices()">Refresh</button>
+    </div>
+    <div id="devKey"></div>
+    <table><thead><tr><th>Name</th><th>Created</th><th>Last seen</th><th></th></tr></thead><tbody id="devices"></tbody></table>
+  </div>
+
+  <div class="card full hidden" id="auditCard">
+    <div class="row">
+      <h2 style="margin:0;flex:1">Audit log</h2>
+      <button class="ghost" onclick="loadAudit()">Refresh</button>
+      <button class="ghost" onclick="verifyAudit()">Verify chain</button>
+      <span class="muted" id="auditStatus"></span>
+    </div>
+    <div class="scroll">
+      <table><thead><tr><th>Time</th><th>Actor</th><th>Action</th><th>Detail</th><th>IP</th></tr></thead><tbody id="audit"></tbody></table>
+    </div>
+  </div>
+</main>
+
+<script>
+const $ = id => document.getElementById(id);
+const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const today = new Date().toISOString().slice(0,10);
+$('date').value = today;
+$('month').value = today.slice(0,7);
+let SHIFTS = [];
+
+function token(){ return localStorage.getItem('fat') || ''; }
+function authHeaders(extra){
+  const h = Object.assign({'Content-Type':'application/json'}, extra || {});
+  if (token()) h['Authorization'] = 'Bearer ' + token();
+  return h;
+}
+async function api(path, opts){
+  opts = opts || {};
+  const r = await fetch(path, Object.assign({}, opts, {headers: authHeaders(opts.headers)}));
+  if (r.status === 401 || r.status === 403) { logout(); throw new Error('Please sign in'); }
+  if (!r.ok) { let m; try { m = (await r.json()).detail; } catch(e){ m = await r.text(); } throw new Error(m); }
+  const ct = r.headers.get('content-type') || '';
+  return ct.includes('json') ? r.json() : r.text();
+}
+
+function showLogin(){ $('loginCard').classList.remove('hidden'); }
+function logout(){
+  localStorage.removeItem('fat');
+  $('who').textContent = '';
+  $('outBtn').classList.add('hidden');
+  $('loginBtn').classList.remove('hidden');
+  ['kpis','dayCard','reportCard','eventsCard','empCard','shiftsCard','holidaysCard','devicesCard','auditCard']
+    .forEach(id => $(id).classList.add('hidden'));
+  showLogin();
+}
+async function login(){
+  $('loginErr').textContent = '';
+  try {
+    const r = await fetch('/auth/login', {method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({username:$('u').value, password:$('p').value})});
+    if (!r.ok) { let m; try { m = (await r.json()).detail; } catch(e){ m = 'Sign-in failed'; } throw new Error(m); }
+    const d = await r.json();
+    localStorage.setItem('fat', d.token);
+    $('p').value = '';
+    $('loginCard').classList.add('hidden');
+    enter();
+  } catch(e){ $('loginErr').textContent = e.message; }
+}
+function jwtSub(t){
+  try {
+    let p = t.split('.')[1].replace(/-/g,'+').replace(/_/g,'/');
+    p += '='.repeat((4 - p.length % 4) % 4);
+    return JSON.parse(atob(p)).sub || 'admin';
+  } catch(e){ return 'admin'; }
+}
+function enter(){
+  $('who').textContent = 'signed in as ' + jwtSub(token());
+  $('loginBtn').classList.add('hidden');
+  $('outBtn').classList.remove('hidden');
+  ['kpis','dayCard','reportCard','eventsCard','empCard','shiftsCard','holidaysCard','devicesCard','auditCard']
+    .forEach(id => $(id).classList.remove('hidden'));
+  jGet('/health').then(h => { $('model').textContent = `${h.model} · threshold ${h.threshold} · liveness ${h.liveness_required ? 'on' : 'off'}`; }).catch(()=>{});
+  loadDay(); loadReport(); loadShifts(); loadHolidays(); loadDevices(); loadAudit();
+}
+async function jGet(u){ const r = await fetch(u); return r.json(); }
+
+async function loadDay(){
+  const d = $('date').value || today;
+  try {
+    const [day, ev] = await Promise.all([api('/attendance/day?date='+d), api('/attendance?date='+d)]);
+    const rows = day.employees;
+    $('kPresent').textContent = rows.filter(r => ['PRESENT','LATE','OPEN'].includes(r.status)).length;
+    $('kLate').textContent    = rows.filter(r => r.status === 'LATE').length;
+    $('kTotal').textContent   = rows.length;
+    $('kEvents').textContent  = ev.events.length;
+    $('grade').innerHTML = rows.map(r => `<tr>
+      <td>${esc(r.name)}</td><td>${esc(r.emp_code)}</td><td>${esc(r.shift||'—')}</td>
+      <td>${r.first_in ? esc(r.first_in.slice(11,16)) : '—'}</td>
+      <td>${r.last_out ? esc(r.last_out.slice(11,16)) : '—'}</td>
+      <td>${r.hours.toFixed(2)}</td>
+      <td>${r.late_min ? r.late_min+'m' : '—'}</td>
+      <td>${r.early_min ? r.early_min+'m' : '—'}</td>
+      <td>${r.ot_hours ? r.ot_hours.toFixed(2) : '—'}</td>
+      <td><span class="pill ${r.status}">${r.status}</span></td></tr>`).join('')
+      || '<tr><td colspan="10" class="muted">No employees</td></tr>';
+    $('events').innerHTML = ev.events.length ? ev.events.map(x => `<tr>
+      <td>${esc(x.ts.slice(11))}</td><td>${esc(x.name)}</td><td>${esc(x.emp_code)}</td>
+      <td><span class="pill ${x.event_type.toLowerCase()}">${x.event_type}</span></td>
+      <td>${x.score!=null?x.score.toFixed(3):'—'}</td><td>${esc(x.source)}</td>
+      <td><button class="danger" onclick="delEvent(${x.id})">del</button></td></tr>`).join('')
+      : '<tr><td colspan="7" class="muted">No events for this date</td></tr>';
+  } catch(e){ $('model').textContent = 'Error: ' + e.message; }
+}
+function exportCsv(){ const d=$('date').value||today; window.open('/attendance/export.csv?date='+d, '_blank'); }
+async function delEvent(id){
+  if (!confirm('Delete event ' + id + '? (recorded in the audit log)')) return;
+  try { await api('/attendance/'+id+'?reason=dashboard', {method:'DELETE'}); loadDay(); } catch(e){ alert(e.message); }
+}
+
+async function loadReport(){
+  const m = $('month').value || today.slice(0,7);
+  try {
+    const rep = await api('/reports/monthly?month='+m);
+    $('report').innerHTML = rep.employees.map(r => `<tr>
+      <td>${esc(r.name)}</td><td>${esc(r.emp_code)}</td><td>${esc(r.department||'—')}</td>
+      <td>${r.present}</td><td>${r.late}</td><td>${r.absent}</td><td>${r.weekoff}</td><td>${r.holiday}</td>
+      <td>${r.total_hours.toFixed(2)}</td><td>${r.ot_hours.toFixed(2)}</td></tr>`).join('')
+      || '<tr><td colspan="10" class="muted">No employees</td></tr>';
+  } catch(e){ $('report').innerHTML = '<tr><td colspan="10" class="muted">'+esc(e.message)+'</td></tr>'; }
+}
+function exportReport(){ const m=$('month').value||today.slice(0,7); window.open('/reports/monthly.csv?month='+m, '_blank'); }
+
+async function loadEmployees(){
+  const [e, sh] = await Promise.all([api('/employees'), api('/shifts')]);
+  SHIFTS = sh.shifts;
+  const wk = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
+  $('emps').innerHTML = e.employees.map(x => {
+    const shOpts = SHIFTS.map(s => `<option value="${s.id}"${s.id===x.shift_id?' selected':''}>${esc(s.name)}</option>`).join('');
+    const wOpts = ['<option value="">—</option>'].concat(wk.map((w,i)=>`<option value="${i}"${x.weekoff_weekday===i?' selected':''}>${w}</option>`)).join('');
+    return `<tr><td>${esc(x.name)}</td><td>${esc(x.emp_code)}</td><td>${esc(x.department||'—')}</td><td>${x.images}</td>
+      <td><select onchange="saveShift(${x.id}, this.value, ${x.weekoff_weekday ?? 'null'})"><option value="">default</option>${shOpts}</select></td>
+      <td><select onchange="saveShift(${x.id}, ${x.shift_id ?? 'null'}, this.value)">${wOpts}</select></td>
+      <td class="muted">${esc((x.created_at||'').slice(0,10))}</td></tr>`;
+  }).join('') || '<tr><td colspan="7" class="muted">No employees</td></tr>';
+}
+async function saveShift(id, shift, weekoff){
+  try { await api('/employees/'+id+'/shift', {method:'POST', body: JSON.stringify({shift_id: shift||null, weekoff_weekday: weekoff===''?null:weekoff})}); }
+  catch(e){ alert(e.message); }
+}
+
+async function loadShifts(){
+  try {
+    const d = await api('/shifts'); SHIFTS = d.shifts;
+    $('shifts').innerHTML = d.shifts.map(s => `<tr><td>${esc(s.name)}</td><td>${esc(s.start_time)}</td><td>${esc(s.end_time)}</td>
+      <td>${s.grace_min}m</td><td>${s.work_hours}</td>
+      <td><button class="danger" onclick="delShift(${s.id})">del</button></td></tr>`).join('') || '<tr><td colspan="6" class="muted">None</td></tr>';
+  } catch(e){}
+  loadEmployees();
+}
+async function addShift(){
+  try {
+    await api('/shifts', {method:'POST', body: JSON.stringify({name:$('shName').value, start_time:$('shStart').value,
+      end_time:$('shEnd').value, grace_min:Number($('shGrace').value||15), work_hours:Number($('shHours').value||8)})});
+    $('shName').value=$('shStart').value=$('shEnd').value=''; loadShifts();
+  } catch(e){ alert(e.message); }
+}
+async function delShift(id){ if(confirm('Delete shift '+id+'? Employees fall back to the default.')){ try{ await api('/shifts/'+id,{method:'DELETE'}); loadShifts(); }catch(e){alert(e.message);} } }
+
+async function loadHolidays(){
+  try {
+    const d = await api('/holidays');
+    $('holidays').innerHTML = d.holidays.map(h => `<tr><td>${esc(h.date)}</td><td>${esc(h.name)}</td>
+      <td><button class="danger" onclick="delHoliday('${esc(h.date)}')">del</button></td></tr>`).join('') || '<tr><td colspan="3" class="muted">None</td></tr>';
+  } catch(e){}
+}
+async function addHoliday(){
+  try { await api('/holidays', {method:'POST', body: JSON.stringify({date:$('holDate').value, name:$('holName').value})}); $('holName').value=''; loadHolidays(); }
+  catch(e){ alert(e.message); }
+}
+async function delHoliday(date){ try{ await api('/holidays/'+date,{method:'DELETE'}); loadHolidays(); }catch(e){alert(e.message);} }
+
+async function loadDevices(){
+  try {
+    const d = await api('/admin/devices');
+    $('devices').innerHTML = d.devices.map(x => `<tr><td>${esc(x.name)}</td><td>${esc((x.created_at||'').slice(0,10))}</td>
+      <td>${esc(x.last_seen||'never')}</td><td><button class="danger" onclick="delDevice(${x.id})">revoke</button></td></tr>`).join('')
+      || '<tr><td colspan="4" class="muted">None</td></tr>';
+  } catch(e){}
+}
+async function addDevice(){
+  try {
+    const d = await api('/admin/devices', {method:'POST', body: JSON.stringify({name:$('devName').value})});
+    $('devKey').innerHTML = '<p class="muted">Set this device key in the kiosk app settings (shown only once):</p><pre class="key">'+esc(d.key)+'</pre>';
+    $('devName').value=''; loadDevices();
+  } catch(e){ alert(e.message); }
+}
+async function delDevice(id){ if(confirm('Revoke device '+id+'?')){ try{ await api('/admin/devices/'+id,{method:'DELETE'}); loadDevices(); }catch(e){alert(e.message);} } }
+
+async function loadAudit(){
+  try {
+    const d = await api('/audit?limit=100');
+    $('audit').innerHTML = d.entries.map(x => `<tr><td>${esc(x.ts)}</td><td>${esc(x.actor_type)}:${esc(x.actor)}</td>
+      <td>${esc(x.action)}</td><td>${esc(x.detail)}</td><td>${esc(x.ip)}</td></tr>`).join('') || '<tr><td colspan="5" class="muted">Empty</td></tr>';
+  } catch(e){}
+}
+async function verifyAudit(){
+  try { const r = await api('/audit/verify'); $('auditStatus').textContent = r.ok ? `✓ chain intact (${r.checked} rows)` : `⚠ broken at #${r.broken_at}`; }
+  catch(e){ $('auditStatus').textContent = e.message; }
+}
+
+// boot
+if (token()) { enter(); } else { showLogin(); }
+setInterval(() => { if (token()) loadDay(); }, 15000);
+</script>
+</body>
+</html>

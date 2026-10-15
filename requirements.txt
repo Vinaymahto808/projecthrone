@@ -1,6 +1,7 @@
 deepface
+tf-keras
 fastapi
-opencv-python-headless
+opencv-python-headless<5
 python-multipart
 requests
 streamlit

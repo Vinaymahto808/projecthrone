@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Tablets / large screens -->
+    <dimen name="page_padding">32dp</dimen>
+    <dimen name="card_radius">20dp</dimen>
+    <dimen name="camera_max_size">420dp</dimen>
+    <dimen name="content_max_width">760dp</dimen>
+    <dimen name="avatar_size">64dp</dimen>
+    <dimen name="clock_text">36sp</dimen>
+    <dimen name="button_height">60dp</dimen>
+</resources>
