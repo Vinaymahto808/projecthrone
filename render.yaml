@@ -1,27 +1,41 @@
 services:
+  # Face Attendance API + HR dashboard (server.py) - the "carrier" project.
+  #
+  # Runs the TensorFlow-free OpenCV YuNet+SFace backend so it fits Render's
+  # free 512 MB instance (DeepFace/TensorFlow would OOM there). The 37 MB ONNX
+  # models live in models/ and are part of the repo.
+  #
+  # NOTE: this is a *separate* service from the older carrier-face-api /
+  # carrier-face-ui services, which are wired to the different `face_match`
+  # repo. Those names are already taken, hence `carrier-attendance` here.
+  #
+  # Storage note: Render's free plan has NO persistent disk and the service
+  # sleeps after ~15 min of inactivity, which resets the filesystem. So
+  # enrolments and punches are lost between sessions - fine for a demo, but for
+  # durable attendance use a paid instance with a disk (add `disk:` below plus
+  # FACE_DATA_DIR=/var/data) or run run_server.ps1 on a PC.
   - type: web
-    name: carrier-face-api
+    name: carrier-attendance
     runtime: python
     plan: free
-    buildCommand: pip install -r requirements-full.txt
-    startCommand: uvicorn api:app --host 0.0.0.0 --port $PORT
+    region: singapore
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn server:app --host 0.0.0.0 --port $PORT
     healthCheckPath: /health
     envVars:
       - key: PYTHON_VERSION
         value: 3.13.5
-
-  - type: web
-    name: carrier-face-ui
-    runtime: python
-    plan: free
-    buildCommand: pip install -r requirements-full.txt
-    startCommand: streamlit run app.py --server.address 0.0.0.0 --server.port $PORT
-    healthCheckPath: /
-    envVars:
-      - key: PYTHON_VERSION
-        value: 3.13.5
-      - key: FACE_API_URL
-        fromService:
-          type: web
-          name: carrier-face-api
-          envVarKey: RENDER_EXTERNAL_URL
+      - key: FACE_EMBEDDER_BACKEND
+        value: opencv
+      - key: FACE_ADMIN_USER
+        value: admin
+      # Set these in the Render dashboard (marked "sync: false" = not in git).
+      - key: FACE_ADMIN_PASSWORD
+        sync: false
+      - key: FACE_KIOSK_NAME
+        value: kiosk-1
+      - key: FACE_KIOSK_KEY
+        sync: false
+      # Fixed JWT signing key so tokens stay valid across restarts.
+      - key: FACE_ATTENDANCE_SECRET
+        generateValue: true
