@@ -1,5 +1,9 @@
 # Face Match Demo
 
+[![Live on Vercel](https://img.shields.io/badge/Live%20on%20Vercel-face--match--9uho.vercel.app-black?logo=vercel)](https://face-match-9uho.vercel.app)
+
+**Live deployment:** https://face-match-9uho.vercel.app — the FastAPI attendance API plus the dashboard (`/`). See [Deploying](#deploying) for what runs where.
+
 A local Streamlit interface backed by FastAPI and DeepFace. Capture two images in sequence; the UI displays age, gender, race, emotion, region, and all returned face-analysis fields for each image before showing the same-person result and verification metadata.
 
 Use Python 3.13 or newer, matching the `requires-python` setting in `pyproject.toml`. The current workspace has Python 3.14, but DeepFace is not installed there yet.
@@ -100,7 +104,7 @@ Security notes for a real deployment: put the API behind HTTPS (then remove `use
 
 **Render** (`render.yaml`) runs the full stack: `carrier-face-api` (`uvicorn api:app`) plus `carrier-face-ui` (Streamlit, pointed at the API through `FACE_API_URL`). Data lives on the service disk.
 
-**Vercel** deploys the API only, and needs a TensorFlow-free build: DeepFace + TensorFlow is ~1.4 GB and Vercel's function-size limit is 500 MB. The deployment therefore installs `requirements.txt` (the serverless-light set: FastAPI, OpenCV, NumPy, Pillow) and recognition switches to OpenCV's bundled DNN models (`models/face_detection_yunet_2023mar.onnx` for detection, `models/face_recognition_sface_2021dec.onnx` for 128-d embeddings, both Apache-2.0). `api/index.py` is the entry point; `.vercelignore` keeps the upload small and hides `uv.lock`/`pyproject.toml` so Vercel does not pull TensorFlow back in through `uv sync`. The heavy stack stays in `requirements-full.txt`.
+**Vercel** is live at **https://face-match-9uho.vercel.app** and deploys the API only, with a TensorFlow-free build: DeepFace + TensorFlow is ~1.4 GB and Vercel's function-size limit is 500 MB. The deployment therefore installs `requirements.txt` (the serverless-light set: FastAPI, OpenCV, NumPy, Pillow) and recognition switches to OpenCV's bundled DNN models (`models/face_detection_yunet_2023mar.onnx` for detection, `models/face_recognition_sface_2021dec.onnx` for 128-d embeddings, both Apache-2.0). `api/index.py` is the entry point; `.vercelignore` keeps the upload small and hides `uv.lock`/`pyproject.toml` so Vercel does not pull TensorFlow back in through `uv sync`. The heavy stack stays in `requirements-full.txt`.
 
 Serverless caveats on Vercel: the filesystem is read-only except `/tmp`, so `config.DATA_DIR` moves the database, enrolments, embeddings and secret key to `/tmp/carrier`; that data survives warm invocations but resets when the instance is recycled, and requests are capped at 60 s. Use Render (or the desktop tools) when attendance data must be durable.
 
